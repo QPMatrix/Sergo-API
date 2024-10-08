@@ -1,11 +1,10 @@
 services:
   postgres-db:
     image: postgres:latest
-    container_name: postgres_sql
+    container_name: pssql
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-      POSTGRES_DB: sergo
     ports:
       - "5432:5432"
     volumes:
