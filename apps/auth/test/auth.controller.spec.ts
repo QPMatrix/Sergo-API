@@ -1,174 +1,251 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { IUserInterface } from '@app/common';
-import { User } from '.prisma/client';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import { of } from 'rxjs';
-import { AuthController } from '../src/auth.controllers';
-import { AuthService } from '../src/auth.service';
-import { JwtAuthGuard } from '../src/guard/jwt-auth.guard';
-import { LocalAuthGuard } from '../src/guard/local-auth.guard';
-import { CreateUserDto } from '../src/dto/create-user.dto';
+import {
+  ConflictException,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
+import { AuthController } from '../src/auth/controllers/auth.controller';
+import { AuthService } from '../src/auth/services/auth.service';
+import { CreateUserDto } from '../src/auth/dto/create-user.dto';
 
 describe('AuthController', () => {
-  let controller: AuthController;
+  let authController: AuthController;
   let authService: AuthService;
-
-  const mockAuthService = {
-    register: jest.fn(),
-    localLogin: jest.fn(),
-    updateUser: jest.fn(),
-    deleteUser: jest.fn(),
-  };
-
-  const mockUser: User = {
-    id: 'user-id',
-    email: 'test@example.com',
-    password: 'hashed-password',
-    phone: '1234567890',
-    updatedAt: new Date(),
-    createdAt: new Date(),
-  };
-
-  const mockIUserInterface: IUserInterface = {
-    userId: 'user-id',
-    email: 'test@example.com',
-    roles: ['CUSTOMER'],
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: mockAuthService }],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(LocalAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
+      providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            register: jest.fn(),
+            localLogin: jest.fn(),
+            getUserById: jest.fn(),
+            updateUser: jest.fn(),
+            deleteUser: jest.fn(),
+            refreshToken: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
 
-    controller = module.get<AuthController>(AuthController);
+    authController = module.get<AuthController>(AuthController);
     authService = module.get<AuthService>(AuthService);
   });
 
-  afterEach(() => {
-    jest.resetAllMocks();
+  it('should be defined', () => {
+    expect(authController).toBeDefined();
   });
 
   describe('register', () => {
-    it('should register a user successfully', async () => {
-      const dto: CreateUserDto = {
+    it('should call AuthService.register and return the result', async () => {
+      const createUserDto: CreateUserDto = {
         email: 'test@example.com',
-        password: 'StrongPassword!1234',
+        password: 'test',
         phone: '1234567890',
-        firstName: 'John',
-        lastName: 'Doe',
-        birthday: new Date('1990-01-01'),
+        firstName: 'Test',
+        lastName: 'User',
+        birthday: new Date('2000-01-01'),
       };
-      mockAuthService.register.mockResolvedValue(mockUser);
+      const mockUser = { id: '123', ...createUserDto };
 
-      const result = await controller.register(dto);
+      (authService.register as jest.Mock).mockResolvedValue(mockUser);
 
-      expect(authService.register).toHaveBeenCalledWith(dto);
+      const result = await authController.register(createUserDto);
+      expect(authService.register).toHaveBeenCalledWith(createUserDto);
       expect(result).toEqual(mockUser);
     });
 
     it('should throw ConflictException if user already exists', async () => {
-      const dto: CreateUserDto = {
-        email: 'test@example.com',
-        password: 'StrongPassword!1234',
-        phone: '1234567890',
-        firstName: 'John',
-        lastName: 'Doe',
-        birthday: new Date('1990-01-01'),
-      };
-      mockAuthService.register.mockRejectedValue(
+      (authService.register as jest.Mock).mockRejectedValue(
         new ConflictException('User already exists'),
       );
 
-      await expect(controller.register(dto)).rejects.toThrow(ConflictException);
+      const createUserDto: CreateUserDto = {
+        email: 'test@example.com',
+        password: 'test',
+        phone: '1234567890',
+        firstName: 'Test',
+        lastName: 'User',
+        birthday: new Date('2000-01-01'),
+      };
+
+      await expect(authController.register(createUserDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
   describe('localLogin', () => {
-    it('should log in a user successfully', async () => {
-      const tokens = {
-        access_token: 'jwt-token-here',
-        refresh_token: 'refresh-token-here',
+    it('should call AuthService.localLogin and return tokens', async () => {
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
       };
-      mockAuthService.localLogin.mockResolvedValue(tokens);
+      const mockTokens = {
+        access_token: 'jwt-token',
+        refresh_token: 'refresh-token',
+      };
 
-      const result = await controller.localLogin(mockIUserInterface);
+      (authService.localLogin as jest.Mock).mockResolvedValue(mockTokens);
 
-      expect(authService.localLogin).toHaveBeenCalledWith(mockIUserInterface);
-      expect(result).toEqual(tokens);
+      const result = await authController.localLogin(mockUser);
+      expect(authService.localLogin).toHaveBeenCalledWith(mockUser);
+      expect(result).toEqual(mockTokens);
     });
 
-    it('should throw UnauthorizedException with invalid credentials', async () => {
-      mockAuthService.localLogin.mockRejectedValue(
+    it('should throw UnauthorizedException if login fails', async () => {
+      (authService.localLogin as jest.Mock).mockRejectedValue(
         new UnauthorizedException('Invalid credentials'),
       );
 
-      await expect(controller.localLogin(mockIUserInterface)).rejects.toThrow(
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
+      };
+
+      await expect(authController.localLogin(mockUser)).rejects.toThrow(
         UnauthorizedException,
       );
     });
   });
 
   describe('getProfile', () => {
-    it('should return the user profile', () => {
-      const result = controller.getProfile(mockUser);
+    it('should return user profile by ID', async () => {
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
+      };
 
+      (authService.getUserById as jest.Mock).mockResolvedValue(mockUser);
+
+      const result = await authController.getProfile(mockUser);
+      expect(authService.getUserById).toHaveBeenCalledWith(mockUser.userId);
       expect(result).toEqual(mockUser);
+    });
+
+    it('should throw NotFoundException if user is not found', async () => {
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
+      };
+
+      (authService.getUserById as jest.Mock).mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
+
+      await expect(authController.getProfile(mockUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('updateUser', () => {
-    it('should update the user successfully', async () => {
-      const updateData = { email: 'new@example.com' };
-      const updatedUser = { ...mockUser, email: 'new@example.com' };
-      mockAuthService.updateUser.mockResolvedValue(updatedUser);
+    it('should update user and return updated user', async () => {
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
+      };
+      const updateData: Partial<CreateUserDto> = {
+        email: 'updated@example.com',
+      };
+      const updatedUser = { ...mockUser, email: 'updated@example.com' };
 
-      const result = await controller.updateUser(
-        updateData,
-        mockIUserInterface,
-      );
+      (authService.updateUser as jest.Mock).mockResolvedValue(updatedUser);
 
+      const result = await authController.updateUser(updateData, mockUser);
       expect(authService.updateUser).toHaveBeenCalledWith(
-        mockIUserInterface.userId,
+        mockUser.userId,
         updateData,
       );
       expect(result).toEqual(updatedUser);
     });
 
-    it('should throw NotFoundException if user does not exist', async () => {
-      const updateData = { email: 'new@example.com' };
-      mockAuthService.updateUser.mockRejectedValue(new Error('User not found'));
+    it('should throw NotFoundException if user is not found', async () => {
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
+      };
+      const updateData: Partial<CreateUserDto> = {
+        email: 'updated@example.com',
+      };
+
+      (authService.updateUser as jest.Mock).mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
       await expect(
-        controller.updateUser(updateData, mockIUserInterface),
-      ).rejects.toThrow('User not found');
+        authController.updateUser(updateData, mockUser),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('deleteUser', () => {
-    it('should delete the user successfully', async () => {
-      mockAuthService.deleteUser.mockResolvedValue(mockUser);
+    it('should delete the user and return the result', async () => {
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
+      };
+      const deletedUser = { id: '123', email: 'test@example.com' };
 
-      const result = await controller.deleteUser(mockIUserInterface);
+      (authService.deleteUser as jest.Mock).mockResolvedValue(deletedUser);
 
-      expect(authService.deleteUser).toHaveBeenCalledWith(
-        mockIUserInterface.userId,
-      );
-      expect(result).toEqual(mockUser);
+      const result = await authController.deleteUser(mockUser);
+      expect(authService.deleteUser).toHaveBeenCalledWith(mockUser.userId);
+      expect(result).toEqual(deletedUser);
     });
 
-    it('should throw NotFoundException if user does not exist', async () => {
-      mockAuthService.deleteUser.mockRejectedValue(new Error('User not found'));
+    it('should throw NotFoundException if user is not found', async () => {
+      const mockUser: IUserInterface = {
+        userId: '123',
+        email: 'test@example.com',
+        roles: ['CUSTOMER'],
+      };
 
-      await expect(controller.deleteUser(mockIUserInterface)).rejects.toThrow(
-        'User not found',
+      (authService.deleteUser as jest.Mock).mockRejectedValue(
+        new NotFoundException('User not found'),
       );
+
+      await expect(authController.deleteUser(mockUser)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should return new access and refresh tokens', async () => {
+      const mockTokens = {
+        access_token: 'new-access-token',
+        refresh_token: 'new-refresh-token',
+      };
+
+      (authService.refreshToken as jest.Mock).mockResolvedValue(mockTokens);
+
+      const result = await authController.refreshToken('old-refresh-token');
+      expect(authService.refreshToken).toHaveBeenCalledWith(
+        'old-refresh-token',
+      );
+      expect(result).toEqual(mockTokens);
+    });
+
+    it('should throw UnauthorizedException if refresh token is invalid', async () => {
+      (authService.refreshToken as jest.Mock).mockRejectedValue(
+        new UnauthorizedException('Invalid refresh token'),
+      );
+
+      await expect(
+        authController.refreshToken('invalid-refresh-token'),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });
