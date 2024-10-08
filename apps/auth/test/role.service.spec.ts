@@ -1,120 +1,143 @@
 import { Test, TestingModule } from '@nestjs/testing';
+
+import { NotFoundException } from '@nestjs/common';
 import { RoleType } from '.prisma/client';
 import { RoleService } from '../src/services/role.service';
 import { PrismaService } from '../src/services/prisma.service';
 
 describe('RoleService', () => {
-  let roleService: RoleService;
+  let service: RoleService;
   let prismaService: PrismaService;
+
+  const mockPrismaService = {
+    role: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    roleAssignment: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  };
+
+  const mockRole = { id: 'role-id', name: 'CUSTOMER' };
+  const mockRoleAssignment = { userId: 'user-id', roleId: 'role-id' };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RoleService,
-        {
-          provide: PrismaService,
-          useValue: {
-            role: {
-              create: jest.fn(),
-              findUnique: jest.fn(),
-            },
-            roleAssignment: {
-              create: jest.fn(),
-            },
-          },
-        },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
-    roleService = module.get<RoleService>(RoleService);
+    service = module.get<RoleService>(RoleService);
     prismaService = module.get<PrismaService>(PrismaService);
   });
 
-  it('should be defined', () => {
-    expect(roleService).toBeDefined();
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
   describe('createRole', () => {
-    it('should create a new role', async () => {
-      const mockRole = { id: '1', name: RoleType.CUSTOMER };
-      prismaService.role.create = jest.fn().mockResolvedValueOnce(mockRole);
+    it('should create a role successfully', async () => {
+      mockPrismaService.role.create.mockResolvedValue(mockRole);
 
-      const result = await roleService.createRole(RoleType.CUSTOMER);
+      const result = await service.createRole(RoleType.CUSTOMER);
+
       expect(prismaService.role.create).toHaveBeenCalledWith({
-        data: {
-          name: RoleType.CUSTOMER,
-        },
+        data: { name: RoleType.CUSTOMER },
       });
       expect(result).toEqual(mockRole);
     });
   });
 
   describe('assignRoleToUser', () => {
-    it('should assign an existing role to a user', async () => {
-      const mockRole = { id: '1', name: RoleType.CUSTOMER };
-      const mockRoleAssignment = { id: '1', userId: '123', roleId: '1' };
+    it('should assign role to user successfully', async () => {
+      mockPrismaService.role.findUnique.mockResolvedValue(mockRole);
+      mockPrismaService.roleAssignment.create.mockResolvedValue(
+        mockRoleAssignment,
+      );
 
-      // Mock findUnique to return the role
-      prismaService.role.findUnique = jest.fn().mockResolvedValueOnce(mockRole);
-
-      // Mock roleAssignment.create to assign the role
-      prismaService.roleAssignment.create = jest
-        .fn()
-        .mockResolvedValueOnce(mockRoleAssignment);
-
-      const result = await roleService.assignRoleToUser(
-        '123',
+      const result = await service.assignRoleToUser(
+        'user-id',
         RoleType.CUSTOMER,
       );
 
       expect(prismaService.role.findUnique).toHaveBeenCalledWith({
         where: { name: RoleType.CUSTOMER },
       });
-
       expect(prismaService.roleAssignment.create).toHaveBeenCalledWith({
-        data: {
-          userId: '123',
-          roleId: mockRole.id,
-        },
+        data: { userId: 'user-id', roleId: mockRole.id },
       });
-
       expect(result).toEqual(mockRoleAssignment);
     });
 
-    it('should create the role if it does not exist and assign it', async () => {
-      const mockRole = { id: '1', name: RoleType.CUSTOMER };
-      const mockRoleAssignment = { id: '1', userId: '123', roleId: '1' };
+    it('should create role if not exists and assign to user', async () => {
+      mockPrismaService.role.findUnique.mockResolvedValue(null);
+      mockPrismaService.role.create.mockResolvedValue(mockRole);
+      mockPrismaService.roleAssignment.create.mockResolvedValue(
+        mockRoleAssignment,
+      );
 
-      // Mock findUnique to return null, so the role will be created
-      prismaService.role.findUnique = jest.fn().mockResolvedValueOnce(null);
-
-      // Mock role.create to create the role
-      prismaService.role.create = jest.fn().mockResolvedValueOnce(mockRole);
-
-      // Mock roleAssignment.create to assign the newly created role
-      prismaService.roleAssignment.create = jest
-        .fn()
-        .mockResolvedValueOnce(mockRoleAssignment);
-
-      const result = await roleService.assignRoleToUser(
-        '123',
+      const result = await service.assignRoleToUser(
+        'user-id',
         RoleType.CUSTOMER,
       );
 
       expect(prismaService.role.create).toHaveBeenCalledWith({
-        data: {
-          name: RoleType.CUSTOMER,
-        },
+        data: { name: RoleType.CUSTOMER },
       });
-
       expect(prismaService.roleAssignment.create).toHaveBeenCalledWith({
-        data: {
-          userId: '123',
-          roleId: mockRole.id,
-        },
+        data: { userId: 'user-id', roleId: mockRole.id },
+      });
+      expect(result).toEqual(mockRoleAssignment);
+    });
+  });
+
+  describe('getRolesForUser', () => {
+    it('should get roles for user successfully', async () => {
+      const roles = [{ ...mockRoleAssignment, role: mockRole }];
+      mockPrismaService.roleAssignment.findMany.mockResolvedValue(roles);
+
+      const result = await service.getRolesForUser('user-id');
+
+      expect(prismaService.roleAssignment.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-id' },
+        include: { role: true },
+      });
+      expect(result).toEqual(roles);
+    });
+  });
+
+  describe('removeRoleFromUser', () => {
+    it('should remove role from user successfully', async () => {
+      mockPrismaService.role.findUnique.mockResolvedValue(mockRole);
+      mockPrismaService.roleAssignment.deleteMany.mockResolvedValue({
+        count: 1,
       });
 
-      expect(result).toEqual(mockRoleAssignment);
+      const result = await service.removeRoleFromUser(
+        'user-id',
+        RoleType.CUSTOMER,
+      );
+
+      expect(prismaService.role.findUnique).toHaveBeenCalledWith({
+        where: { name: RoleType.CUSTOMER },
+      });
+      expect(prismaService.roleAssignment.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'user-id', roleId: mockRole.id },
+      });
+      expect(result).toEqual({ count: 1 });
+    });
+
+    it('should throw NotFoundException if role does not exist', async () => {
+      mockPrismaService.role.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.removeRoleFromUser('user-id', RoleType.CUSTOMER),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });
