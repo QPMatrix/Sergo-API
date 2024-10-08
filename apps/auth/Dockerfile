@@ -18,7 +18,7 @@ RUN npx prisma generate
 
 # Copy application source code
 COPY apps/auth apps/auth
-
+COPY libs libs
 # Install dependencies for the auth app
 RUN cd apps/auth && yarn install
 

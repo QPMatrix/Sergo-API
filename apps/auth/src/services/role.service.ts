@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { RoleType } from '.prisma/client';
 
@@ -6,33 +6,34 @@ import { RoleType } from '.prisma/client';
 export class RoleService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Create a new role if it does not exist
   async createRole(name: RoleType) {
-    return this.prisma.role.create({
-      data: { name },
+    return this.prisma.role.create({ data: { name } });
+  }
+
+  async assignRoleToUser(userId: string, roleName: RoleType) {
+    let role = await this.prisma.role.findUnique({ where: { name: roleName } });
+    if (!role) role = await this.createRole(roleName);
+
+    return this.prisma.roleAssignment.create({
+      data: { userId, roleId: role.id },
     });
   }
 
-  // Assign a role to a user
-  async assignRoleToUser(userId: string, roleName: RoleType) {
-    console.log('Assigning role to user', userId, roleName);
+  async getRolesForUser(userId: string) {
+    return this.prisma.roleAssignment.findMany({
+      where: { userId },
+      include: { role: true },
+    });
+  }
 
-    // Check if the role exists
-    let role = await this.prisma.role.findUnique({
+  async removeRoleFromUser(userId: string, roleName: RoleType) {
+    const role = await this.prisma.role.findUnique({
       where: { name: roleName },
     });
+    if (!role) throw new NotFoundException(`Role ${roleName} not found`);
 
-    // If the role does not exist, create it and assign it to the variable
-    if (!role) {
-      role = await this.createRole(roleName);
-    }
-
-    // Create a role assignment for the user
-    return this.prisma.roleAssignment.create({
-      data: {
-        userId,
-        roleId: role.id,
-      },
+    return this.prisma.roleAssignment.deleteMany({
+      where: { userId, roleId: role.id },
     });
   }
 }

@@ -1,19 +1,29 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { AuthService } from './auth.service';
 import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './guard/jwt-auth.guard';
+import { LocalAuthGuard } from './guard/local-auth.guard';
+import { CreateUserDto } from './dto/create-user.dto';
+import {
+  ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { UserEntity } from './entity/user.entity';
-import { CreateUserDto } from './dto/create-user.dto';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import { LocalAuthGuard } from './guard/local-auth.guard';
-import { Request } from 'express';
+import { CurrentUser, IUserInterface } from '@app/common';
+import { User } from '.prisma/client';
 
 @Controller('auth')
-@ApiTags('auth') // Grouping API endpoints under "auth" tag
+@ApiTags('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -21,15 +31,6 @@ export class AuthController {
   @ApiCreatedResponse({
     description: 'User successfully registered',
     type: UserEntity,
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Conflict: User already exists',
-    type: ConflictException,
-  })
-  @ApiBody({
-    type: CreateUserDto,
-    description: 'User registration data',
   })
   async register(@Body() data: CreateUserDto) {
     return this.authService.register(data);
@@ -40,12 +41,12 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'User successfully logged in',
-    type: 'access_token: token',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized: Invalid credentials',
-    type: UnauthorizedException,
+    schema: {
+      properties: {
+        access_token: { type: 'string', example: 'jwt-token-here' },
+        refresh_token: { type: 'string', example: 'refresh-token-here' },
+      },
+    },
   })
   @ApiBody({
     schema: {
@@ -55,7 +56,38 @@ export class AuthController {
       },
     },
   })
-  async localLogin(@Req() req: Request) {
-    return this.authService.localLogin(req.user);
+  async localLogin(@CurrentUser() user: IUserInterface) {
+    return this.authService.localLogin(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  @ApiBearerAuth('access_token')
+  @ApiResponse({ status: 200, description: 'Get user profile' })
+  getProfile(@CurrentUser() user: User) {
+    return user;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('update-user/:id')
+  @ApiBearerAuth('access_token')
+  @ApiResponse({ status: 200, description: 'User updated successfully' })
+  @ApiBody({
+    type: CreateUserDto,
+    description: 'Data to update the user',
+  })
+  async updateUser(
+    @Body() updateData: Partial<CreateUserDto>,
+    @CurrentUser() user: IUserInterface,
+  ) {
+    return this.authService.updateUser(user.userId, updateData);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('delete-user/:id')
+  @ApiBearerAuth('access_token')
+  @ApiResponse({ status: 200, description: 'User deleted successfully' })
+  async deleteUser(@CurrentUser() user: IUserInterface) {
+    return this.authService.deleteUser(user.userId);
   }
 }
