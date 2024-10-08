@@ -19,6 +19,11 @@ export class AuthController {
     status: 409,
     description: 'Conflict: User already exists',
     type: ConflictException,
+    example: {
+      statusCode: 409,
+      message: 'User already exists',
+      error: 'Conflict: User already exists',
+    },
   })
   async register(@Body() data: CreateUserDto) {
     return this.authService.register(data);

@@ -4,6 +4,8 @@ import { AuthService } from './auth.service';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { PrismaService } from './services/prisma.service';
+import { RoleService } from './services/role.service';
+import { AccountsService } from './services/accounts.service';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -19,6 +21,6 @@ import { PrismaService } from './services/prisma.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService],
+  providers: [AuthService, PrismaService, RoleService, AccountsService],
 })
 export class AuthModule {}

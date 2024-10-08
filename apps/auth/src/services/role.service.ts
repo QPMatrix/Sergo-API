@@ -13,6 +13,7 @@ export class RoleService {
     });
   }
   async assignRoleToUser(userId: string, roleName: RoleType) {
+    console.log('Assigning role to user', userId, roleName);
     const role = await this.prisma.role.findUnique({
       where: { name: roleName },
     });
