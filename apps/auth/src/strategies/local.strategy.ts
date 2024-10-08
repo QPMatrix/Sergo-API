@@ -13,8 +13,20 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({
       where: { email: username },
       include: {
-        roleAssignments: true,
-        accounts: true,
+        roleAssignments: {
+          select: {
+            role: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        accounts: {
+          select: {
+            provider: true,
+          },
+        },
       },
     });
     if (!user) {
