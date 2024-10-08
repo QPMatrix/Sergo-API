@@ -16,7 +16,7 @@ export class AuthService {
         },
       });
       if (isUserExists) {
-        return new ConflictException('User already exists'); // Throw an exception properly
+        throw new ConflictException('User already exists'); // Throw an exception properly
       }
 
       const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
