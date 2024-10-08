@@ -16,8 +16,8 @@ services:
     image: dpage/pgadmin4
     container_name: pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@sergo.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+        PGADMIN_DEFAULT_EMAIL: admin@sergo.com
+        PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "8080:80"
     depends_on:
