@@ -20,19 +20,21 @@ export class AccountsService {
     const account = await this.prisma.account.findFirst({
       where: { userId, provider },
     });
-    if (!account)
+    if (!account) {
       throw new NotFoundException(
         `Account with provider ${provider} not found for user ${userId}`,
       );
+    }
     return account;
   }
 
   async getAccountsByUserId(userId: string) {
     const accounts = await this.prisma.account.findMany({ where: { userId } });
-    if (!accounts.length)
+    if (!accounts.length) {
       throw new NotFoundException(
         `No accounts found for user with ID ${userId}`,
       );
+    }
     return accounts;
   }
 
@@ -45,10 +47,11 @@ export class AccountsService {
       where: { userId, provider },
       data: { providerAccountId: newProviderAccountId },
     });
-    if (account.count === 0)
+    if (account.count === 0) {
       throw new NotFoundException(
         `Account with provider ${provider} not found for user ${userId}`,
       );
+    }
     return account;
   }
 

@@ -1,34 +1,25 @@
+// src/auth/auth.module.ts
+
 import { Module } from '@nestjs/common';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as Joi from 'joi';
+import { AuthController } from './controllers/auth.controller';
+import { AuthService } from './services/auth.service';
 import { PrismaService } from './services/prisma.service';
 import { RoleService } from './services/role.service';
 import { AccountsService } from './services/accounts.service';
 import { LocalStrategy } from './strategies/local.strategy';
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshTokenService } from './services/refresh-token.service';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { KafkaService } from '../kafka/kafka.service';
+
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-      validationSchema: Joi.object({
-        NODE_ENV: Joi.string()
-          .valid('development', 'production', 'test', 'provision')
-          .default('development'),
-        PORT: Joi.number().port().default(4000),
-        DATABASE_URL: Joi.string().required(),
-        JWT_SECRET: Joi.string().required(),
-      }),
-    }),
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: async (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET'),
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: '15m' },
       }),
       inject: [ConfigService],
@@ -43,6 +34,7 @@ import { RefreshTokenService } from './services/refresh-token.service';
     LocalStrategy,
     JwtStrategy,
     RefreshTokenService,
+    KafkaService,
   ],
 })
 export class AuthModule {}

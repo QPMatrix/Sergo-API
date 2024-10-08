@@ -12,7 +12,9 @@ export class RoleService {
 
   async assignRoleToUser(userId: string, roleName: RoleType) {
     let role = await this.prisma.role.findUnique({ where: { name: roleName } });
-    if (!role) role = await this.createRole(roleName);
+    if (!role) {
+      role = await this.createRole(roleName);
+    }
 
     return this.prisma.roleAssignment.create({
       data: { userId, roleId: role.id },
@@ -30,7 +32,9 @@ export class RoleService {
     const role = await this.prisma.role.findUnique({
       where: { name: roleName },
     });
-    if (!role) throw new NotFoundException(`Role ${roleName} not found`);
+    if (!role) {
+      throw new NotFoundException(`Role ${roleName} not found`);
+    }
 
     return this.prisma.roleAssignment.deleteMany({
       where: { userId, roleId: role.id },

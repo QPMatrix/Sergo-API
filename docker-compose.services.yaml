@@ -11,20 +11,60 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - sergo-network
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
     environment:
-        PGADMIN_DEFAULT_EMAIL: admin@sergo.com
-        PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: admin@sergo.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "8080:80"
     depends_on:
       - postgres-db
     networks:
       - sergo-network
+
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    container_name: zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    ports:
+      - "2181:2181"
+    networks:
+      - sergo-network
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    networks:
+      - sergo-network
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    container_name: kafdrop
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: 'kafka:9092'
+    depends_on:
+      - kafka
+    networks:
+      - sergo-network
+
 volumes:
   postgres-data:
+
 networks:
   sergo-network:
     driver: bridge

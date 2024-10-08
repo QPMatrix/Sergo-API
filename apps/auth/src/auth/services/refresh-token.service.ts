@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { User } from '.prisma/client';
 
 @Injectable()
 export class RefreshTokenService {
@@ -10,13 +11,8 @@ export class RefreshTokenService {
   ) {}
 
   async generateRefreshToken(userId: string): Promise<string> {
-    const existingToken = await this.prisma.refreshToken.findFirst({
-      where: { userId },
-    });
-
-    if (existingToken) {
-      return existingToken.token;
-    }
+    // Delete existing tokens for the user
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
 
     const token = this.jwtService.sign({ sub: userId }, { expiresIn: '7d' });
     await this.prisma.refreshToken.create({
@@ -30,23 +26,19 @@ export class RefreshTokenService {
     return token;
   }
 
-  async validateRefreshToken(token: string) {
+  async validateRefreshToken(token: string): Promise<User> {
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { token },
       include: { user: true },
     });
 
-    if (!storedToken)
+    if (!storedToken) {
       throw new UnauthorizedException('Refresh token not found');
-    if (new Date() > storedToken.expiresAt)
+    }
+    if (new Date() > storedToken.expiresAt) {
       throw new UnauthorizedException('Refresh token expired');
+    }
 
     return storedToken.user;
-  }
-
-  async refreshToken(userId: string) {
-    const newAccessToken = this.jwtService.sign({ sub: userId });
-    const newRefreshToken = await this.generateRefreshToken(userId);
-    return { access_token: newAccessToken, refresh_token: newRefreshToken };
   }
 }

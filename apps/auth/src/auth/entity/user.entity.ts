@@ -15,17 +15,23 @@ export class UserEntity implements User {
   email: string;
 
   @ApiProperty({
-    description: 'The phone number of the user',
-    example: '+123456789',
-    required: false, // Optional property
+    description: 'Indicates if the user has verified their email',
+    example: false,
   })
-  phone: string;
+  emailVerified: boolean;
+
+  @ApiProperty({
+    description: 'The phone number of the user',
+    example: '+1234567890',
+    required: false,
+  })
+  phone: string | null;
 
   @ApiProperty({
     description: 'The hashed password of the user',
     example: 'hashedPassword',
   })
-  password: string;
+  password: string | null;
 
   @ApiProperty({
     description: 'The date the user was created',

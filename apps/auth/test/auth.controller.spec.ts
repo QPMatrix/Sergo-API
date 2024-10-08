@@ -4,7 +4,7 @@ import { IUserInterface } from '@app/common';
 import { User } from '.prisma/client';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { of } from 'rxjs';
-import { AuthController } from '../src/auth.controller';
+import { AuthController } from '../src/auth.controllers';
 import { AuthService } from '../src/auth.service';
 import { JwtAuthGuard } from '../src/guard/jwt-auth.guard';
 import { LocalAuthGuard } from '../src/guard/local-auth.guard';
