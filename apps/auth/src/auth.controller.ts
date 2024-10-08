@@ -38,9 +38,9 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('local/login')
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'User successfully logged in',
-    type: UserEntity,
+    type: 'access_token: token',
   })
   @ApiResponse({
     status: 401,
@@ -50,12 +50,12 @@ export class AuthController {
   @ApiBody({
     schema: {
       properties: {
-        email: { type: 'string', example: 'test@example.com' },
-        password: { type: 'string', example: 'password123' },
+        email: { type: 'string', example: 'hasan@qpmatrix.tech' },
+        password: { type: 'string', example: 'StrongPassword!1234' },
       },
     },
   })
   async localLogin(@Req() req: Request) {
-    return req.user;
+    return this.authService.localLogin(req.user);
   }
 }
