@@ -6,6 +6,7 @@ import * as Joi from 'joi';
 import { PrismaService } from './services/prisma.service';
 import { RoleService } from './services/role.service';
 import { AccountsService } from './services/accounts.service';
+import { LocalStrategy } from './strategies/local.strategy';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +22,12 @@ import { AccountsService } from './services/accounts.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, RoleService, AccountsService],
+  providers: [
+    AuthService,
+    PrismaService,
+    RoleService,
+    AccountsService,
+    LocalStrategy,
+  ],
 })
 export class AuthModule {}
