@@ -9,6 +9,8 @@ import { AccountsService } from './services/accounts.service';
 import { LocalStrategy } from './strategies/local.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { RefreshTokenService } from './services/refresh-token.service';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -39,6 +41,8 @@ import { JwtModule } from '@nestjs/jwt';
     RoleService,
     AccountsService,
     LocalStrategy,
+    JwtStrategy,
+    RefreshTokenService,
   ],
 })
 export class AuthModule {}
