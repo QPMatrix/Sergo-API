@@ -8,7 +8,10 @@
     "prisma": "^5.20.0"
   },
   "dependencies": {
+    "@nestjs/passport": "^10.0.3",
     "@prisma/client": "^5.20.0",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0"
   }
 }
